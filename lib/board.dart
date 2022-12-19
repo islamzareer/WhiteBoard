@@ -3,20 +3,23 @@ import 'dart:ui';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_colorpicker/flutter_colorpicker.dart';
+import 'package:white_board/drawing_painter.dart';
 
-class Draw extends StatefulWidget {
+class Board extends StatefulWidget {
+  const Board({super.key});
+
   @override
-  _DrawState createState() => _DrawState();
+  _BoardState createState() => _BoardState();
 }
 
-class _DrawState extends State<Draw> {
+class _BoardState extends State<Board> {
   Color selectedColor = Colors.black;
   Color pickerColor = Colors.black;
   double strokeWidth = 3.0;
   double opacity = 1.0;
   bool showBottomList = false;
   StrokeCap strokeCap = (Platform.isAndroid) ? StrokeCap.butt : StrokeCap.round;
-  SelectedMode selectedMode = SelectedMode.StrokeWidth;
+  SelectedMode selectedMode = SelectedMode.strokeWidth;
   List<DrawingPoints> points = [];
   List<Color> colors = [
     Colors.red,
@@ -29,78 +32,107 @@ class _DrawState extends State<Draw> {
   Widget build(BuildContext context) {
     return SafeArea(
       child: Scaffold(
+        appBar: AppBar(
+            title: const Text("Here is your wide Space..."),
+            backgroundColor: Colors.deepPurple,
+            actions: [
+              TextButton(
+                  onPressed: () {
+                    setState(() {
+                      showBottomList = false;
+                      points.clear();
+                    });
+                  },
+                  child: const Text(
+                    "Clear    ",
+                    style: TextStyle(color: Colors.white, fontSize: 20),
+                  )),
+            ]),
+        backgroundColor: Colors.white,
         bottomNavigationBar: Padding(
           padding: const EdgeInsets.all(8.0),
           child: Container(
             decoration: BoxDecoration(
                 borderRadius: BorderRadius.circular(50),
-                color: Colors.tealAccent),
+                color: Colors.deepPurple),
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: <Widget>[
-                    IconButton(
-                        icon: Icon(Icons.notes),
-                        onPressed: () {
-                          setState(() {
-                            if (selectedMode == SelectedMode.StrokeWidth)
-                              showBottomList = !showBottomList;
-                            selectedMode = SelectedMode.StrokeWidth;
-                          });
-                        }),
-                    IconButton(
-                        icon: Icon(Icons.opacity),
-                        onPressed: () {
-                          setState(() {
-                            if (selectedMode == SelectedMode.Opacity)
-                              showBottomList = !showBottomList;
-                            selectedMode = SelectedMode.Opacity;
-                          });
-                        }),
-                    IconButton(
-                        icon: Icon(Icons.color_lens),
-                        onPressed: () {
-                          setState(() {
-                            if (selectedMode == SelectedMode.Color)
-                              showBottomList = !showBottomList;
-                            selectedMode = SelectedMode.Color;
-                          });
-                        }),
-                    IconButton(
-                        icon: Icon(Icons.clear),
-                        onPressed: () {
-                          setState(() {
-                            showBottomList = false;
-                            points.clear();
-                          });
-                        }),
-                  ],
-                ),
                 Visibility(
-                  child: (selectedMode == SelectedMode.Color)
+                  visible: showBottomList,
+                  child: (selectedMode == SelectedMode.color)
                       ? Row(
                           mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                           children: getColorList(),
                         )
                       : Slider(
-                          value: (selectedMode == SelectedMode.StrokeWidth)
+                          value: (selectedMode == SelectedMode.strokeWidth)
                               ? strokeWidth
                               : opacity,
-                          max: (selectedMode == SelectedMode.StrokeWidth)
+                          max: (selectedMode == SelectedMode.strokeWidth)
                               ? 50.0
                               : 1.0,
                           min: 0.0,
                           onChanged: (val) {
                             setState(() {
-                              if (selectedMode == SelectedMode.StrokeWidth)
+                              if (selectedMode == SelectedMode.strokeWidth) {
                                 strokeWidth = val;
-                              else
+                              } else {
                                 opacity = val;
+                              }
                             });
                           }),
-                  visible: showBottomList,
+                ),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: <Widget>[
+                    IconButton(
+                        icon: const Icon(Icons.notes),
+                        onPressed: () {
+                          setState(() {
+                            if (selectedMode == SelectedMode.strokeWidth) {
+                              showBottomList = !showBottomList;
+                            }
+                            selectedMode = SelectedMode.strokeWidth;
+                          });
+                        }),
+                    IconButton(
+                        icon: const Icon(Icons.opacity),
+                        onPressed: () {
+                          setState(() {
+                            if (selectedMode == SelectedMode.opacity) {
+                              showBottomList = !showBottomList;
+                            }
+                            selectedMode = SelectedMode.opacity;
+                          });
+                        }),
+                    IconButton(
+                        icon: const Icon(Icons.color_lens),
+                        onPressed: () {
+                          setState(() {
+                            if (selectedMode == SelectedMode.color) {
+                              showBottomList = !showBottomList;
+                            }
+                            selectedMode = SelectedMode.color;
+                          });
+                        }),
+                    IconButton(
+                        icon: const Icon(Icons.remove),
+                        onPressed: () {
+                          setState(() {
+                            selectedColor = Colors.white;
+                          });
+                        }),
+                    IconButton(
+                        icon: const Icon(Icons.undo),
+                        onPressed: () {
+                          setState(() {
+                            if (points.isNotEmpty) {
+                              points.removeLast();
+                            }
+                          });
+                        }),
+                  ],
                 ),
               ],
             ),
@@ -164,7 +196,6 @@ class _DrawState extends State<Draw> {
                 onColorChanged: (color) {
                   pickerColor = color;
                 },
-                showLabel: true,
                 pickerAreaHeightPercent: 0.8,
               ),
             ),
@@ -186,7 +217,7 @@ class _DrawState extends State<Draw> {
           padding: const EdgeInsets.only(bottom: 20.0),
           height: 36,
           width: 36,
-          decoration: BoxDecoration(
+          decoration: const BoxDecoration(
               gradient: LinearGradient(
             colors: [Colors.white, Colors.black, Colors.red],
             begin: Alignment.topLeft,
@@ -218,32 +249,6 @@ class _DrawState extends State<Draw> {
   }
 }
 
-class DrawingPainter extends CustomPainter {
-  List<DrawingPoints> pointsList = [];
-  List<Offset> offsetPoints = [];
-
-  DrawingPainter({required this.pointsList});
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    for (int i = 0; i < pointsList.length - 1; i++) {
-      if (pointsList[i] != null && pointsList[i + 1] != null) {
-        canvas.drawLine(pointsList[i].points, pointsList[i + 1].points,
-            pointsList[i].paint);
-      } else if (pointsList[i] != null && pointsList[i + 1] == null) {
-        offsetPoints.clear();
-        offsetPoints.add(pointsList[i].points);
-        offsetPoints.add(Offset(
-            pointsList[i].points.dx + 0.1, pointsList[i].points.dy + 0.1));
-        canvas.drawPoints(PointMode.points, offsetPoints, pointsList[i].paint);
-      }
-    }
-  }
-
-  @override
-  bool shouldRepaint(covariant CustomPainter oldDelegate) => true;
-}
-
 class DrawingPoints {
   Paint paint;
   Offset points;
@@ -251,4 +256,4 @@ class DrawingPoints {
   DrawingPoints({required this.paint, required this.points});
 }
 
-enum SelectedMode { StrokeWidth, Opacity, Color }
+enum SelectedMode { strokeWidth, opacity, color }
