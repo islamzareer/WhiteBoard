@@ -1,259 +1,196 @@
-import 'dart:io';
-import 'dart:ui';
-
+import 'package:file_saver/file_saver.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_colorpicker/flutter_colorpicker.dart';
-import 'package:white_board/drawing_painter.dart';
+import 'package:font_awesome_flutter/font_awesome_flutter.dart';
+import 'package:white_board/custom_widgets/custom_floatingAction_button.dart';
+import 'package:whiteboard/whiteboard.dart';
 
 class Board extends StatefulWidget {
   const Board({super.key});
-
   @override
   _BoardState createState() => _BoardState();
 }
 
 class _BoardState extends State<Board> {
   Color selectedColor = Colors.black;
-  Color pickerColor = Colors.black;
+  late Color pickerColor = Colors.blue;
   double strokeWidth = 3.0;
-  double opacity = 1.0;
   bool showBottomList = false;
-  StrokeCap strokeCap = (Platform.isAndroid) ? StrokeCap.butt : StrokeCap.round;
-  SelectedMode selectedMode = SelectedMode.strokeWidth;
-  List<DrawingPoints> points = [];
-  List<Color> colors = [
-    Colors.red,
-    Colors.green,
-    Colors.blue,
-    Colors.amber,
-    Colors.black
-  ];
+
+  late WhiteBoardController _controller;
+  @override
+  void initState() {
+    _controller = WhiteBoardController();
+    super.initState();
+  }
+
+  @override
+  void dispose() {
+    _controller.clear();
+    super.dispose();
+  }
+
   @override
   Widget build(BuildContext context) {
-    return SafeArea(
-      child: Scaffold(
+    return MaterialApp(
+      title: 'Whiteboard',
+      theme: ThemeData(
+        primarySwatch: Colors.blue,
+      ),
+      home: Scaffold(
         appBar: AppBar(
-            title: const Text("Here is your wide Space..."),
-            backgroundColor: Colors.deepPurple,
-            actions: [
-              TextButton(
-                  onPressed: () {
-                    setState(() {
-                      showBottomList = false;
-                      points.clear();
-                    });
-                  },
-                  child: const Text(
-                    "Clear    ",
-                    style: TextStyle(color: Colors.white, fontSize: 20),
-                  )),
-            ]),
-        backgroundColor: Colors.white,
-        bottomNavigationBar: Padding(
-          padding: const EdgeInsets.all(8.0),
-          child: Container(
-            decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(50),
-                color: Colors.deepPurple),
+          title: const Text('Whiteboard'),
+          actions: [
+            IconButton(
+                icon: const Icon(Icons.image),
+                onPressed: _controller.convertToImage),
+          ],
+        ),
+        body: Stack(children: [
+          SizedBox(
+            height: MediaQuery.of(context).size.height,
+            width: MediaQuery.of(context).size.width,
             child: Column(
-              mainAxisSize: MainAxisSize.min,
               children: [
-                Visibility(
-                  visible: showBottomList,
-                  child: (selectedMode == SelectedMode.color)
-                      ? Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                          children: getColorList(),
-                        )
-                      : Slider(
-                          value: (selectedMode == SelectedMode.strokeWidth)
-                              ? strokeWidth
-                              : opacity,
-                          max: (selectedMode == SelectedMode.strokeWidth)
-                              ? 50.0
-                              : 1.0,
-                          min: 0.0,
-                          onChanged: (val) {
-                            setState(() {
-                              if (selectedMode == SelectedMode.strokeWidth) {
-                                strokeWidth = val;
-                              } else {
-                                opacity = val;
-                              }
-                            });
-                          }),
-                ),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: <Widget>[
-                    IconButton(
-                        icon: const Icon(Icons.notes),
-                        onPressed: () {
-                          setState(() {
-                            if (selectedMode == SelectedMode.strokeWidth) {
-                              showBottomList = !showBottomList;
-                            }
-                            selectedMode = SelectedMode.strokeWidth;
-                          });
-                        }),
-                    IconButton(
-                        icon: const Icon(Icons.opacity),
-                        onPressed: () {
-                          setState(() {
-                            if (selectedMode == SelectedMode.opacity) {
-                              showBottomList = !showBottomList;
-                            }
-                            selectedMode = SelectedMode.opacity;
-                          });
-                        }),
-                    IconButton(
-                        icon: const Icon(Icons.color_lens),
-                        onPressed: () {
-                          setState(() {
-                            if (selectedMode == SelectedMode.color) {
-                              showBottomList = !showBottomList;
-                            }
-                            selectedMode = SelectedMode.color;
-                          });
-                        }),
-                    IconButton(
-                        icon: const Icon(Icons.remove),
-                        onPressed: () {
-                          setState(() {
-                            selectedColor = Colors.white;
-                          });
-                        }),
-                    IconButton(
-                        icon: const Icon(Icons.undo),
-                        onPressed: () {
-                          setState(() {
-                            if (points.isNotEmpty) {
-                              points.removeLast();
-                            }
-                          });
-                        }),
-                  ],
+                Expanded(
+                  child: WhiteBoard(
+                      controller: _controller,
+                      strokeWidth: strokeWidth,
+                      //backgroundColor: Colors.black,
+                      strokeColor: selectedColor,
+                      onConvertImage: (Uint8List imageList) async {
+                        await FileSaver.instance.saveAs(
+                            "resultImage", imageList, 'png', MimeType.PNG);
+                      }),
                 ),
               ],
             ),
           ),
-        ),
-        body: GestureDetector(
-          onPanUpdate: (details) {
-            setState(() {
-              RenderBox renderBox = context.findRenderObject() as RenderBox;
-
-              points.add(DrawingPoints(
-                  points: renderBox.globalToLocal(details.globalPosition),
-                  paint: Paint()
-                    ..strokeCap = strokeCap
-                    ..isAntiAlias = true
-                    ..color = selectedColor.withOpacity(opacity)
-                    ..strokeWidth = strokeWidth));
-            });
-          },
-          onPanStart: (details) {
-            setState(() {
-              RenderBox renderBox = context.findRenderObject() as RenderBox;
-              points.add(DrawingPoints(
-                  points: renderBox.globalToLocal(details.globalPosition),
-                  paint: Paint()
-                    ..strokeCap = strokeCap
-                    ..isAntiAlias = true
-                    ..color = selectedColor.withOpacity(opacity)
-                    ..strokeWidth = strokeWidth));
-            });
-          },
-          onPanEnd: (details) {
-            setState(() {
-              points.add;
-            });
-          },
-          child: CustomPaint(
-            size: Size.infinite,
-            painter: DrawingPainter(
-              pointsList: points,
+          SizedBox(
+            width: double.infinity,
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.end,
+              crossAxisAlignment: CrossAxisAlignment.end,
+              children: [
+                Padding(
+                  padding: const EdgeInsets.only(right: 5, bottom: 5),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Column(
+                        mainAxisAlignment: MainAxisAlignment.end,
+                        crossAxisAlignment: CrossAxisAlignment.end,
+                        children: [
+                          CustomFloatingActionButton(
+                            tag: 0,
+                            function: () {
+                              setState(() {
+                                selectedColor = Colors.black;
+                              });
+                            },
+                            icon: const Icon(FontAwesomeIcons.pen),
+                          ),
+                          const SizedBox(height: 2),
+                          CustomFloatingActionButton(
+                            tag: 1,
+                            function: _controller.undo,
+                            icon: const Icon(FontAwesomeIcons.arrowRotateLeft),
+                          ),
+                          const SizedBox(height: 2),
+                          CustomFloatingActionButton(
+                            tag: 2,
+                            function: _controller.redo,
+                            icon: const Icon(FontAwesomeIcons.arrowRotateRight),
+                          ),
+                          const SizedBox(height: 2),
+                          CustomFloatingActionButton(
+                            tag: 3,
+                            function: () {
+                              setState(() {
+                                selectedColor = Colors.white;
+                              });
+                            },
+                            icon: const Icon(FontAwesomeIcons.eraser),
+                          ),
+                          const SizedBox(height: 2),
+                          Row(
+                            children: [
+                              Visibility(
+                                visible: showBottomList,
+                                child: Slider(
+                                    value: strokeWidth,
+                                    max: 50.0,
+                                    min: 0.0,
+                                    onChanged: (val) {
+                                      setState(() {
+                                        strokeWidth = val;
+                                      });
+                                    }),
+                              ),
+                              CustomFloatingActionButton(
+                                tag: 4,
+                                function: () {
+                                  setState(() {
+                                    showBottomList = !showBottomList;
+                                  });
+                                },
+                                icon: const Icon(FontAwesomeIcons
+                                    .upRightAndDownLeftFromCenter),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 2),
+                          CustomFloatingActionButton(
+                            tag: 5,
+                            function: () {
+                              showColorPacker(context);
+                            },
+                            icon: const Icon(FontAwesomeIcons.palette),
+                          ),
+                          const SizedBox(height: 2),
+                          CustomFloatingActionButton(
+                            tag: 6,
+                            function: _controller.clear,
+                            icon: const Icon(FontAwesomeIcons.trash),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                )
+              ],
             ),
-          ),
-        ),
+          )
+        ]),
       ),
     );
   }
 
-  getColorList() {
-    List<Widget> listWidget = [];
-    for (Color color in colors) {
-      listWidget.add(colorCircle(color));
-    }
-    Widget colorPicker = GestureDetector(
-      onTap: () {
-        showDialog(
-          builder: (context) => AlertDialog(
-            title: const Text('Pick a color!'),
-            content: SingleChildScrollView(
-              child: ColorPicker(
-                pickerColor: pickerColor,
-                onColorChanged: (color) {
-                  pickerColor = color;
-                },
-                pickerAreaHeightPercent: 0.8,
-              ),
-            ),
-            actions: <Widget>[
-              TextButton(
-                child: const Text('Got it'),
-                onPressed: () {
-                  setState(() => selectedColor = pickerColor);
-                  Navigator.of(context).pop();
-                },
-              ),
-            ],
+  Future<dynamic> showColorPacker(BuildContext context) {
+    return showDialog(
+      builder: (context) => AlertDialog(
+        title: const Text('Pick a color!'),
+        content: SingleChildScrollView(
+          child: ColorPicker(
+            pickerColor: pickerColor,
+            onColorChanged: (color) {
+              pickerColor = color;
+            },
+            pickerAreaHeightPercent: 0.8,
           ),
-          context: context,
-        );
-      },
-      child: ClipOval(
-        child: Container(
-          padding: const EdgeInsets.only(bottom: 20.0),
-          height: 36,
-          width: 36,
-          decoration: const BoxDecoration(
-              gradient: LinearGradient(
-            colors: [Colors.white, Colors.black, Colors.red],
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-          )),
         ),
+        actions: <Widget>[
+          TextButton(
+            child: const Text('Got it'),
+            onPressed: () {
+              setState(() => selectedColor = pickerColor);
+              Navigator.of(context).pop();
+            },
+          ),
+        ],
       ),
-    );
-
-    listWidget.add(colorPicker);
-    return listWidget;
-  }
-
-  Widget colorCircle(Color color) {
-    return GestureDetector(
-      onTap: () {
-        setState(() {
-          selectedColor = color;
-        });
-      },
-      child: ClipOval(
-        child: Container(
-          height: 35,
-          width: 35,
-          color: color,
-        ),
-      ),
+      context: context,
     );
   }
 }
-
-class DrawingPoints {
-  Paint paint;
-  Offset points;
-
-  DrawingPoints({required this.paint, required this.points});
-}
-
-enum SelectedMode { strokeWidth, opacity, color }
